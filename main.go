@@ -25,6 +25,12 @@ type Job struct {
 	Description string         `json:"description"`
 }
 
+type Skill struct {
+	Skill string `json:"skill"`
+	Descr string `json:"descr"`
+	Years int    `json:"years"`
+}
+
 func main() {
 	router := mux.NewRouter()
 
@@ -34,6 +40,7 @@ func main() {
 	}).Methods("GET")
 
 	router.HandleFunc("/getJobs", jobHandler).Methods("GET")
+	router.HandleFunc("/getSkills", skillHandler).Methods("GET")
 
 	log.Println("Starting server on port 8000")
 	log.Fatal(http.ListenAndServe("localhost:8000", router))
@@ -73,5 +80,36 @@ func jobHandler(w http.ResponseWriter, r *http.Request) {
 			log.Fatal(err)
 		}
 		json.NewEncoder(w).Encode(job)
+	}
+}
+
+func skillHandler(w http.ResponseWriter, r *http.Request) {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+	dbUser := os.Getenv("DB_USER")
+	dbPass := os.Getenv("DB_PASSWORD")
+	sqlPath := fmt.Sprintf("%s:%s@tcp(127.0.0.1:3306)/resume", dbUser, dbPass)
+
+	db, dbErr := sql.Open("mysql", sqlPath)
+	if dbErr != nil {
+		log.Fatal(dbErr)
+	}
+	defer db.Close()
+
+	results, err := db.Query("SELECT * FROM skill")
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for results.Next() {
+		var skill Skill
+		err = results.Scan(&skill.Skill, &skill.Descr, &skill.Years)
+		if err != nil {
+			log.Fatal(err)
+		}
+		json.NewEncoder(w).Encode(skill)
 	}
 }
